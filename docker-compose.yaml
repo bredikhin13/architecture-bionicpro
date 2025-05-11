@@ -1,6 +1,12 @@
 version: '3.8'
 
 services:
+  localhost:
+    image: alpine:latest
+    command: sleep infinity
+    ports:
+      - "8080:8080"
+      - "8081:8081"
   keycloak_db:
     image: postgres:14
     environment:
@@ -25,10 +31,9 @@ services:
       - --import-realm
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-    ports:
-      - "8080:8080"
     depends_on:
       - keycloak_db
+    network_mode: "service:localhost"
   frontend:
     build:
       context: ./frontend
@@ -36,7 +41,18 @@ services:
     ports:
       - "3000:3000"
     environment:
-      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_API_URL: http://localhost:8081
       REACT_APP_KEYCLOAK_URL: http://localhost:8080
       REACT_APP_KEYCLOAK_REALM: reports-realm
       REACT_APP_KEYCLOAK_CLIENT_ID: reports-frontend
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: api
+    network_mode: "service:localhost"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - KEYCLOAK_ISSUER_URI=http://localhost:8080/realms/reports-realm
+    depends_on:
+      - keycloak
